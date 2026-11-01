@@ -1,0 +1,20 @@
+# Ambiente virtual
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editores
+.vscode/
+.idea/
+
+# Claude Code
+.claude/
+
+# Material do professor (não publicar)
+material_aula/
