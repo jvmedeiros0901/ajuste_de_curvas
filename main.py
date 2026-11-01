@@ -30,6 +30,7 @@ CONJUNTOS = {
         "M_testados": [10, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300],
         "M_escolhido": 50,           # justificado pela figura 3
         "janela_rbf": (0, 6),        # trecho mostrado na figura 2 (s)
+        "sinal_rbf": "y",            # sinal mostrado na figura 2
     },
     "cpu": {
         "arquivo": "dados_cpu.csv",
@@ -38,7 +39,8 @@ CONJUNTOS = {
         "resultados": "resultados_cpu",
         "M_testados": [25, 50, 100, 150, 200, 250, 300, 400, 500, 600],
         "M_escolhido": 300,
-        "janela_rbf": (0, 90),
+        "janela_rbf": (20, 70),
+        "sinal_rbf": "temperatura",
     },
 }
 
@@ -128,7 +130,7 @@ def main():
         w = modelos.resolver_equacao_normal(Phi_rbf, s)
         ajuste_rbf[nome] = Phi_rbf @ w
         met_rbf[nome] = resumo(s, ajuste_rbf[nome])
-        if nome == nomes[-1]:
+        if nome == cfg["sinal_rbf"]:
             graficos.como_funciona_rbf(t, s, Phi_rbf, w, centros, rotulos[nome], cfg["janela_rbf"],
                                        pasta_resultados / "fig02_como_funciona_rbf.png")
 
