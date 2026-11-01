@@ -1,8 +1,8 @@
 ================================================================
-DADOS
+DADOS (generico)
 ================================================================
   1501 amostras, de t = 0 s a t = 30 s, passo de 0.02 s
-  entrada u troca de sinal 30 vezes
+  entrada u troca de valor 30 vezes
 
 ================================================================
 RBF: ESCOLHA DO NÚMERO DE CENTROS M

@@ -1,7 +1,8 @@
-"""Leitura do arquivo de dados do projeto.
+"""Leitura dos arquivos de dados do projeto.
 
-O CSV usa vírgula como separador decimal ("0,030472"), então cada valor
-é convertido trocando a vírgula por ponto antes de virar número.
+O CSV do professor usa vírgula como separador decimal ("0,030472"), então
+cada valor é convertido trocando a vírgula por ponto antes de virar número.
+O CSV da CPU já usa ponto, e a troca não muda nada nele.
 """
 
 import csv
@@ -9,13 +10,11 @@ import csv
 import numpy as np
 
 
-def carregar_dados(caminho):
-    """Lê o CSV e devolve quatro vetores: t, u, x, y.
+def carregar_dados(caminho, colunas_saida):
+    """Lê o CSV e devolve o tempo t, a entrada u e um dicionário com as saídas.
 
-    t: tempo (s), de 0 a 30 com passo de 0,02 s
-    u: sinal de entrada (onda quadrada de +1 / -1)
-    x: primeira saída medida, com ruído
-    y: segunda saída medida, com ruído
+    colunas_saida diz qual coluna do arquivo vira cada saída, por exemplo
+    {"x": "x_ruido", "y": "y_ruido"}.
     """
     with open(caminho, newline="", encoding="utf-8") as arquivo:
         linhas = list(csv.DictReader(arquivo))
@@ -23,4 +22,5 @@ def carregar_dados(caminho):
     def coluna(nome):
         return np.array([float(linha[nome].replace(",", ".")) for linha in linhas])
 
-    return coluna("t"), coluna("u"), coluna("x_ruido"), coluna("y_ruido")
+    sinais = {nome: coluna(col) for nome, col in colunas_saida.items()}
+    return coluna("t"), coluna("u"), sinais
