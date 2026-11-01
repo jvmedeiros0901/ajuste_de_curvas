@@ -1,0 +1,74 @@
+================================================================
+DADOS (cpu)
+================================================================
+  1501 amostras, de t = 0 s a t = 750 s, passo de 0.50 s
+  entrada u troca de valor 25 vezes
+
+================================================================
+RBF: ESCOLHA DO NÚMERO DE CENTROS M
+================================================================
+      M    σ (s) EMQ treino temperatura EMQ valid. temperatura EMQ treino ventoinha EMQ valid. ventoinha
+     25   31.250                47.2295                55.1632            6713.8012            8013.3912
+     50   15.306                33.0179                38.2405            2779.9970            3618.3176
+    100    7.576                13.4160                14.9789            1129.2247            1417.8402
+    150    5.034                 6.2944                 7.6719             450.4290             477.0245
+    200    3.769                 4.9767                 7.1319             246.0738             320.8373
+    250    3.012                 4.3318                 7.6377             198.4226             259.7738
+    300    2.508                 3.3178                 6.4309             163.3978             249.9185
+    400    1.880                 2.1712                 5.9055             120.2847             259.2082
+    500    1.503                 1.6459                 6.9370              95.5018             384.3503
+    600    1.252                 1.2036                 7.8594              75.4404             375.3078
+
+  M = 300 gaussianas, σ = 2.508 s, 301 pesos por sinal
+
+ETAPAS 01-03: AJUSTE VIA RBF (todos os pontos)
+  sinal              EMQ      RMSE       MAE         r
+  temperatura     3.6275    1.9046    1.0107    0.9729
+  ventoinha     168.3504   12.9750   10.7163    0.9990
+
+================================================================
+ETAPA 04: MMQ COM O MODELO DINÂMICO
+================================================================
+  treino: t < 525.0 s  |  teste: t >= 525.0 s
+
+  Parâmetros livres identificados (equação normal):
+  peso             temperatura   ventoinha
+  w0 (constante)       6.50831     8.06627
+  w1 · y[n-1]          0.92711     1.10803
+  w2 · y[n-2]         -0.03909    -0.11280
+  w3 · u[n]           10.37949    -4.30937
+  w4 · u[n-1]         -8.92262     4.46355
+
+Previsão de um passo (todos os pontos)
+  sinal              EMQ      RMSE       MAE         r
+  temperatura     5.3811    2.3197    0.9112    0.9595
+  ventoinha     416.4834   20.4079   12.6957    0.9975
+
+Previsão de um passo (só o trecho de teste)
+  sinal              EMQ      RMSE       MAE         r
+  temperatura     4.1581    2.0391    0.8312    0.9658
+  ventoinha     483.2440   21.9828   14.3283    0.9882
+
+Simulação livre (todos os pontos)
+  sinal              EMQ      RMSE       MAE         r
+  temperatura    29.2488    5.4082    3.7739    0.7543
+  ventoinha   31945.8601  178.7340  145.3600    0.8799
+
+Simulação livre (só o trecho de teste)
+  sinal              EMQ      RMSE       MAE         r
+  temperatura    25.5069    5.0504    3.3228    0.7700
+  ventoinha   57381.7384  239.5449  216.3344    0.6487
+
+================================================================
+CONFERÊNCIA: GRADIENTE DESCENDENTE × EQUAÇÃO NORMAL (MMQ)
+================================================================
+  temperatura: η = 0.145, condicionamento = 108.2, 1404 épocas, maior diferença nos pesos = 2.2e-05
+  ventoinha: η = 0.240, condicionamento = 871.4, 12183 épocas, maior diferença nos pesos = 1.9e-06
+
+================================================================
+COMPARAÇÃO FINAL (todos os pontos)
+================================================================
+  modelo                       EMQ temperatura   r temperatura EMQ ventoinha   r ventoinha
+  RBF (filtragem no tempo)              3.6275          0.9729      168.3504        0.9990
+  MMQ, previsão de um passo             5.3811          0.9595      416.4834        0.9975
+  MMQ, simulação livre                 29.2488          0.7543    31945.8601        0.8799
