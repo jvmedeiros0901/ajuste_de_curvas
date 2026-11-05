@@ -1,75 +1,59 @@
+
 ================================================================
-DADOS (generico)
+DADOS: TEMPERATURA DA CPU
 ================================================================
-  1501 amostras, de t = 0 s a t = 30 s, passo de 0.02 s
-  entrada u troca de valor 30 vezes
+  1501 amostras, de t = 0 s a t = 750 s, passo de 0.50 s
+  entrada u troca de valor 25 vezes
 
 ================================================================
 RBF: ESCOLHA DO NÚMERO DE CENTROS M
 ================================================================
-      M    σ (s)   EMQ treino x   EMQ valid. x   EMQ treino y   EMQ valid. y
-     10    3.333         0.0196         0.0224         0.0824         0.0871
-     20    1.579         0.0171         0.0187         0.0707         0.0714
-     30    1.034         0.0141         0.0164         0.0587         0.0610
-     40    0.769         0.0096         0.0110         0.0053         0.0060
-     50    0.612         0.0095         0.0112         0.0053         0.0060
-     60    0.508         0.0094         0.0114         0.0052         0.0060
-     80    0.380         0.0092         0.0118         0.0051         0.0062
-    100    0.303         0.0089         0.0118         0.0048         0.0055
-    150    0.201         0.0085         0.0125         0.0045         0.0057
-    200    0.151         0.0080         0.0127         0.0043         0.0062
-    300    0.100         0.0069         0.0144         0.0038         0.0068
+      M    σ (s)    EMQ treino   EMQ validação
+     25   31.250       47.2295         55.1632
+     50   15.306       33.0179         38.2405
+    100    7.576       13.4160         14.9789
+    150    5.034        6.2944          7.6719
+    200    3.769        4.9767          7.1319
+    250    3.012        4.3318          7.6377
+    300    2.508        3.3178          6.4309
+    400    1.880        2.1712          5.9055
+    500    1.503        1.6459          6.9370
+    600    1.252        1.2036          7.8594
 
-  M = 50 gaussianas, σ = 0.612 s, 51 pesos por sinal
-
+================================================================
 ETAPAS 01-03: AJUSTE VIA RBF (todos os pontos)
-  sinal        EMQ      RMSE       MAE         r
-  x         0.0097    0.0984    0.0781    0.7273
-  y         0.0053    0.0731    0.0587    0.9675
+================================================================
+  M = 300 gaussianas, σ = 2.508 s, 301 pesos
+                                         EMQ      RMSE       MAE         r
+  RBF                                 3.6275    1.9046    1.0107    0.9729
 
 ================================================================
 ETAPA 04: MMQ COM O MODELO DINÂMICO
 ================================================================
-  treino: t < 21.0 s  |  teste: t >= 21.0 s
+  treino: t < 525.0 s  |  teste: t >= 525.0 s
 
   Parâmetros livres identificados (equação normal):
-  peso                       x           y
-  w0 (constante)       0.00288    -0.00123
-  w1 · y[n-1]          0.35228     0.48680
-  w2 · y[n-2]          0.21829     0.46764
-  w3 · u[n]           -0.01425    -0.01107
-  w4 · u[n-1]         -0.01769     0.03799
+  w0 (constante)       6.50831
+  w1 · y[n-1]          0.92711
+  w2 · y[n-2]         -0.03909
+  w3 · u[n]           10.37949
+  w4 · u[n-1]         -8.92262
 
-Previsão de um passo (todos os pontos)
-  sinal        EMQ      RMSE       MAE         r
-  x         0.0123    0.1109    0.0883    0.6348
-  y         0.0075    0.0868    0.0688    0.9540
-
-Previsão de um passo (só o trecho de teste)
-  sinal        EMQ      RMSE       MAE         r
-  x         0.0125    0.1117    0.0886    0.5600
-  y         0.0076    0.0874    0.0689    0.9477
-
-Simulação livre (todos os pontos)
-  sinal        EMQ      RMSE       MAE         r
-  x         0.0150    0.1227    0.0966    0.5196
-  y         0.0195    0.1395    0.1097    0.8778
-
-Simulação livre (só o trecho de teste)
-  sinal        EMQ      RMSE       MAE         r
-  x         0.0125    0.1118    0.0883    0.5510
-  y         0.0136    0.1165    0.0964    0.9142
+                                         EMQ      RMSE       MAE         r
+  Previsão de um passo (todos)        5.3811    2.3197    0.9112    0.9595
+  Previsão de um passo (só teste)     4.1581    2.0391    0.8312    0.9658
+  Simulação livre (todos)            29.2488    5.4082    3.7739    0.7543
+  Simulação livre (só teste)         25.5069    5.0504    3.3228    0.7700
 
 ================================================================
 CONFERÊNCIA: GRADIENTE DESCENDENTE × EQUAÇÃO NORMAL (MMQ)
 ================================================================
-  x: η = 0.176, condicionamento = 74.3, 401 épocas, maior diferença nos pesos = 9.3e-06
-  y: η = 0.236, condicionamento = 57.9, 441 épocas, maior diferença nos pesos = 9.6e-06
+  η = 0.145, condicionamento = 108.2, 1404 épocas, maior diferença nos pesos = 2.3e-05
 
 ================================================================
 COMPARAÇÃO FINAL (todos os pontos)
 ================================================================
-  modelo                          EMQ x      r x    EMQ y      r y
-  RBF (filtragem no tempo)       0.0097   0.7273   0.0053   0.9675
-  MMQ, previsão de um passo      0.0123   0.6348   0.0075   0.9540
-  MMQ, simulação livre           0.0150   0.5196   0.0195   0.8778
+                                         EMQ      RMSE       MAE         r
+  RBF (filtragem no tempo)            3.6275    1.9046    1.0107    0.9729
+  MMQ, previsão de um passo           5.3811    2.3197    0.9112    0.9595
+  MMQ, simulação livre               29.2488    5.4082    3.7739    0.7543

@@ -1,8 +1,4 @@
-"""Funções que desenham e salvam os gráficos do projeto.
-
-`rotulos` é um dicionário com o nome de cada saída para os eixos,
-por exemplo {"x": "x(t)", "y": "y(t)"} ou {"temperatura": "temperatura (°C)"}.
-"""
+"""Funções que desenham e salvam os gráficos do projeto (temperatura da CPU)."""
 
 import matplotlib
 
@@ -25,6 +21,7 @@ plt.rcParams.update({
 
 COR_DADOS = "tab:blue"
 COR_AJUSTE = "tab:red"
+ROTULO = "temperatura (°C)"
 
 
 def _caixa(ax, texto):
@@ -39,121 +36,115 @@ def _salvar(fig, caminho):
     plt.close(fig)
 
 
-def dados(t, u, sinais, rotulos, caminho):
-    """Figura 1: entrada u e as saídas medidas."""
-    fig, axs = plt.subplots(len(sinais) + 1, 1, figsize=(11, 7), sharex=True)
-    axs[0].step(t, u, where="post", color="k", lw=1)
-    axs[0].set_ylabel("entrada u(t)")
-    axs[0].set_title("Dados do sistema a ser identificado")
-    for ax, (nome, s) in zip(axs[1:], sinais.items()):
-        ax.scatter(t, s, s=6, alpha=0.4, color=COR_DADOS, label="medido (com ruído)")
-        ax.set_ylabel(rotulos[nome])
-        ax.legend(loc="upper right", fontsize=8)
-    axs[-1].set_xlabel("tempo (s)")
+def dados(t, u, temp, caminho):
+    """Figura 1: entrada u e a temperatura medida."""
+    fig, (ax_u, ax_t) = plt.subplots(2, 1, figsize=(11, 7), sharex=True)
+    ax_u.step(t, u, where="post", color="k", lw=1)
+    ax_u.set_ylabel("entrada u(t)")
+    ax_u.set_title("Dados do sistema a ser identificado")
+    ax_t.scatter(t, temp, s=6, alpha=0.4, color=COR_DADOS, label="medido (com ruído)")
+    ax_t.set_ylabel(ROTULO)
+    ax_t.set_xlabel("tempo (s)")
+    ax_t.legend(loc="upper right", fontsize=8)
     _salvar(fig, caminho)
 
 
-def como_funciona_rbf(t, s, Phi, w, centros, rotulo, janela, caminho):
+def ajuste(t, temp, ajustado, metricas, titulo, rotulo_ajuste, caminho, mostrar_emq=True):
+    """Etapas 01/02/04: dados com ruído, curva do modelo e (opcional) o EMQ."""
+    fig, ax = plt.subplots(figsize=(11, 6.5))
+    ax.scatter(t, temp, s=6, alpha=0.35, color=COR_DADOS, label="dados com ruído")
+    ax.plot(t, ajustado, color=COR_AJUSTE, lw=1.4, ls="--", label=rotulo_ajuste)
+    if mostrar_emq:
+        _caixa(ax, f"EMQ = {metricas['EMQ']:.4f}")
+    ax.set_title(titulo)
+    ax.set_xlabel("tempo (s)")
+    ax.set_ylabel(ROTULO)
+    ax.legend(loc="upper right", fontsize=8)
+    _salvar(fig, caminho)
+
+
+def regressao(temp, ajustado, metricas, titulo, caminho):
+    """Etapa 03: medido × ajustado, reta de regressão, faixa ±√EMQ e r."""
+    inclinacao, intercepto = regressao_linear(ajustado, temp)
+    grade = np.linspace(ajustado.min(), ajustado.max(), 100)
+    reta = inclinacao * grade + intercepto
+    faixa = np.sqrt(metricas["EMQ"])
+
+    fig, ax = plt.subplots(figsize=(11, 7))
+    ax.scatter(ajustado, temp, s=6, alpha=0.3, color=COR_DADOS)
+    ax.plot(grade, reta, "k--", lw=1.4,
+            label=f"regressão: medido = {inclinacao:.3f}·ajustado {intercepto:+.4f}")
+    ax.fill_between(grade, reta - faixa, reta + faixa, color=COR_AJUSTE, alpha=0.15, label="±√EMQ")
+    _caixa(ax, f"EMQ = {metricas['EMQ']:.4f}\nr = {metricas['r']:.4f}")
+    ax.set_title(titulo)
+    ax.set_xlabel(f"{ROTULO} ajustado pelo modelo")
+    ax.set_ylabel(f"{ROTULO} medido")
+    ax.legend(loc="lower right", fontsize=8)
+    _salvar(fig, caminho)
+
+
+# ---------------------------------------------------------------------------
+# Figuras extras (não pedidas no enunciado, ficam fora do relatório)
+# ---------------------------------------------------------------------------
+
+
+def escolha_m(lista_m, erros_treino, erros_validacao, m_escolhido, caminho):
+    """Erro de treino e de validação para cada número de centros M."""
+    fig, ax = plt.subplots(figsize=(11, 4))
+    ax.plot(lista_m, erros_treino, "o-", label="treino (pontos usados no ajuste)")
+    ax.plot(lista_m, erros_validacao, "s-", label="validação (pontos separados)")
+    ax.axvline(m_escolhido, color="k", ls="--", lw=1, label=f"M escolhido = {m_escolhido}")
+    ax.set_title(ROTULO)
+    ax.set_xlabel("número de centros M")
+    ax.set_ylabel("EMQ")
+    ax.set_yscale("log")
+    ax.legend(fontsize=8)
+    _salvar(fig, caminho)
+
+
+def como_funciona_rbf(t, temp, Phi, w, centros, janela, caminho):
     """Figura didática: cada gaussiana × seu peso, e a soma de todas."""
     sel = (t >= janela[0]) & (t <= janela[1])
     perto = [j for j, c in enumerate(centros) if janela[0] - 1 <= c <= janela[1] + 1]
-    fig, axs = plt.subplots(2, 1, figsize=(11, 6), sharex=True)
+    fig, (ax_base, ax_soma) = plt.subplots(2, 1, figsize=(11, 6), sharex=True)
     for j in perto:
-        axs[0].plot(t[sel], Phi[sel, j + 1], lw=1)
-    axs[0].set_ylabel("φ_j(t)")
-    axs[0].set_title("As funções de base: um 'sino' gaussiano em cada centro")
-    axs[1].scatter(t[sel], s[sel], s=8, alpha=0.4, color=COR_DADOS, label="dados com ruído")
+        ax_base.plot(t[sel], Phi[sel, j + 1], lw=1)
+    ax_base.set_ylabel("φ_j(t)")
+    ax_base.set_title("As funções de base: um 'sino' gaussiano em cada centro")
+    ax_soma.scatter(t[sel], temp[sel], s=8, alpha=0.4, color=COR_DADOS, label="dados com ruído")
     for j in perto:
-        axs[1].plot(t[sel], w[j + 1] * Phi[sel, j + 1], lw=0.8, alpha=0.7)
-    axs[1].plot(t[sel], Phi[sel] @ w, color=COR_AJUSTE, lw=2.2, label="soma = curva ajustada")
-    axs[1].set_ylabel(rotulo)
-    axs[1].set_xlabel("tempo (s)")
-    axs[1].set_title("Cada sino multiplicado pelo seu peso w_j, e a soma de todos")
-    axs[1].legend(loc="upper right", fontsize=8)
+        ax_soma.plot(t[sel], w[j + 1] * Phi[sel, j + 1], lw=0.8, alpha=0.7)
+    ax_soma.plot(t[sel], Phi[sel] @ w, color=COR_AJUSTE, lw=2.2, label="soma = curva ajustada")
+    ax_soma.set_ylabel(ROTULO)
+    ax_soma.set_xlabel("tempo (s)")
+    ax_soma.set_title("Cada sino multiplicado pelo seu peso w_j, e a soma de todos")
+    ax_soma.legend(loc="upper right", fontsize=8)
     _salvar(fig, caminho)
 
 
-def escolha_m(lista_m, erros, m_escolhido, rotulos, caminho):
-    """Erro de treino e de validação para cada número de centros M."""
-    fig, axs = plt.subplots(1, len(erros), figsize=(11, 4), squeeze=False)
-    axs = axs.ravel()
-    for ax, nome in zip(axs, erros):
-        ax.plot(lista_m, erros[nome]["treino"], "o-", label="treino (pontos usados no ajuste)")
-        ax.plot(lista_m, erros[nome]["validacao"], "s-", label="validação (pontos separados)")
-        ax.axvline(m_escolhido, color="k", ls="--", lw=1, label=f"M escolhido = {m_escolhido}")
-        ax.set_xlabel("número de centros M")
-        ax.set_ylabel("EMQ")
-        ax.set_title(rotulos[nome])
-        ax.set_yscale("log")
-        ax.legend(fontsize=8)
-    _salvar(fig, caminho)
-
-
-def ajuste(t, sinais, ajustes, metricas, rotulos, titulo, caminho, rotulo_ajuste, mostrar_emq=True):
-    """Etapas 01/02/04: dados com ruído, curva do modelo e (opcional) o EMQ."""
-    fig, axs = plt.subplots(len(sinais), 1, figsize=(11, 6.5), sharex=True, squeeze=False)
-    axs = axs.ravel()
-    for ax, nome in zip(axs, sinais):
-        ax.scatter(t, sinais[nome], s=6, alpha=0.35, color=COR_DADOS, label="dados com ruído")
-        ax.plot(t, ajustes[nome], color=COR_AJUSTE, lw=1.4, ls="--", label=rotulo_ajuste)
-        ax.set_ylabel(rotulos[nome])
-        ax.legend(loc="upper right", fontsize=8)
-        if mostrar_emq:
-            _caixa(ax, f"EMQ = {metricas[nome]['EMQ']:.4f}")
-    axs[0].set_title(titulo)
-    axs[-1].set_xlabel("tempo (s)")
-    _salvar(fig, caminho)
-
-
-def regressao(sinais, ajustes, metricas, rotulos, titulo, caminho):
-    """Etapa 03: medido × ajustado, reta de regressão, faixa ±√EMQ e r."""
-    fig, axs = plt.subplots(len(sinais), 1, figsize=(11, 7), squeeze=False)
-    axs = axs.ravel()
-    for ax, nome, cor in zip(axs, sinais, ["tab:red", "tab:orange"]):
-        a, b = ajustes[nome], sinais[nome]
-        inclinacao, intercepto = regressao_linear(a, b)
-        grade = np.linspace(a.min(), a.max(), 100)
-        reta = inclinacao * grade + intercepto
-        faixa = np.sqrt(metricas[nome]["EMQ"])
-        ax.scatter(a, b, s=6, alpha=0.3, color=COR_DADOS)
-        ax.plot(grade, reta, "k--", lw=1.4,
-                label=f"regressão: medido = {inclinacao:.3f}·ajustado {intercepto:+.4f}")
-        ax.fill_between(grade, reta - faixa, reta + faixa, color=cor, alpha=0.15, label="±√EMQ")
-        ax.set_xlabel(f"{rotulos[nome]} ajustado pelo modelo")
-        ax.set_ylabel(f"{rotulos[nome]} medido")
-        ax.legend(loc="lower right", fontsize=8)
-        _caixa(ax, f"EMQ = {metricas[nome]['EMQ']:.4f}\nr = {metricas[nome]['r']:.4f}")
-    axs[0].set_title(titulo)
-    _salvar(fig, caminho)
-
-
-def simulacao(t, sinais, simulados, metricas, rotulos, t_corte, caminho):
+def simulacao(t, temp, simulado, metricas, t_corte, caminho):
     """Simulação livre do modelo MMQ, com a divisão treino/teste marcada."""
-    fig, axs = plt.subplots(len(sinais), 1, figsize=(11, 6.5), sharex=True, squeeze=False)
-    axs = axs.ravel()
-    for ax, nome in zip(axs, sinais):
-        ax.scatter(t, sinais[nome], s=6, alpha=0.35, color=COR_DADOS, label="dados com ruído")
-        ax.plot(t, simulados[nome], color="tab:green", lw=1.4, label="simulação livre (MMQ)")
-        ax.axvline(t_corte, color="k", ls=":", lw=1.2)
-        ax.set_ylabel(rotulos[nome])
-        ax.legend(loc="upper right", fontsize=8)
-        _caixa(ax, f"EMQ = {metricas[nome]['EMQ']:.4f}\nr = {metricas[nome]['r']:.4f}")
-    axs[0].set_title("Modelo MMQ andando sozinho (só recebe a entrada u)  |  à esquerda da linha: treino, à direita: teste")
-    axs[-1].set_xlabel("tempo (s)")
+    fig, ax = plt.subplots(figsize=(11, 6.5))
+    ax.scatter(t, temp, s=6, alpha=0.35, color=COR_DADOS, label="dados com ruído")
+    ax.plot(t, simulado, color="tab:green", lw=1.4, label="simulação livre (MMQ)")
+    ax.axvline(t_corte, color="k", ls=":", lw=1.2)
+    _caixa(ax, f"EMQ = {metricas['EMQ']:.4f}\nr = {metricas['r']:.4f}")
+    ax.set_title("Modelo MMQ andando sozinho (só recebe a entrada u)  |  à esquerda da linha: treino, à direita: teste")
+    ax.set_xlabel("tempo (s)")
+    ax.set_ylabel(ROTULO)
+    ax.legend(loc="upper right", fontsize=8)
     _salvar(fig, caminho)
 
 
-def custo_gd(custos, emq_minimo, rotulos, caminho):
+def custo_gd(custos, emq_minimo, caminho):
     """Curva do custo ao longo das épocas do gradiente descendente."""
-    fig, axs = plt.subplots(1, len(custos), figsize=(11, 4), squeeze=False)
-    axs = axs.ravel()
-    for ax, nome in zip(axs, custos):
-        ax.plot(np.arange(1, len(custos[nome]) + 1), custos[nome], lw=1.5)
-        ax.axhline(emq_minimo[nome], color="k", ls="--", lw=1, label="mínimo (equação normal)")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.set_xlabel("época")
-        ax.set_ylabel("custo J(w) = EMQ")
-        ax.set_title(f"Gradiente descendente: {rotulos[nome]}")
-        ax.legend(fontsize=8)
+    fig, ax = plt.subplots(figsize=(11, 4))
+    ax.plot(np.arange(1, len(custos) + 1), custos, lw=1.5)
+    ax.axhline(emq_minimo, color="k", ls="--", lw=1, label="mínimo (equação normal)")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("época")
+    ax.set_ylabel("custo J(w) = EMQ")
+    ax.set_title(f"Gradiente descendente: {ROTULO}")
+    ax.legend(fontsize=8)
     _salvar(fig, caminho)

@@ -4,10 +4,11 @@ Funciona como o sistema do enunciado, mas é o próprio computador:
 
 - entrada u: carga na CPU. A cada MEIO_PERIODO segundos o script liga (u = 1)
   ou desliga (u = 0) um cálculo pesado em todos os núcleos, formando uma onda
-  quadrada, como a entrada dos dados genéricos;
-- saída 1: temperatura do processador (°C), lida do sensor da placa;
-- saída 2: velocidade da ventoinha (rpm), que o notebook ajusta conforme a
-  temperatura.
+  quadrada;
+- saída: temperatura do processador (°C), lida do sensor da placa.
+
+A velocidade da ventoinha (rpm) também é gravada no CSV, mas não entra na
+análise: o projeto usa só o tempo, a carga u e a temperatura.
 
 O sensor mede em graus inteiros, então a temperatura já vem com um "ruído" de
 arredondamento, além das variações naturais.

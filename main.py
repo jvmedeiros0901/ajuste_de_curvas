@@ -1,49 +1,29 @@
-"""Projeto Unidade II: identificação de um sistema dinâmico por ajuste de curvas.
+"""Projeto Unidade II: identificação da temperatura da CPU por ajuste de curvas.
 
-Roda tudo em ordem, imprime as tabelas no terminal e salva os gráficos e
-os números na pasta de resultados do conjunto escolhido.
+Roda todas as etapas do enunciado em ordem, imprime as tabelas no terminal e
+salva os gráficos e os números na pasta resultados/.
 
-    python main.py          # dados genéricos do professor
-    python main.py cpu      # temperatura da CPU (coletada com coletar_cpu.py)
+    python main.py
+
+Os dados (dados/dados_cpu.csv) foram coletados com coletar_cpu.py:
+t = tempo (s), u = carga na CPU (0 ou 1), temperatura = saída medida (°C).
 """
 
-import sys
 from pathlib import Path
 
 import numpy as np
 
 import graficos
 import modelos
-from dados import carregar_dados
 from metricas import emq, resumo
 
 PASTA = Path(__file__).parent
+ARQUIVO_DADOS = PASTA / "dados" / "dados_cpu.csv"
+PASTA_RESULTADOS = PASTA / "resultados"
 
-# Cada conjunto de dados diz de onde vêm os dados, onde salvar os resultados
-# e quantas gaussianas testar/usar na RBF.
-CONJUNTOS = {
-    "generico": {
-        "arquivo": "dados_projeto_02.csv",
-        "saidas": {"x": "x_ruido", "y": "y_ruido"},
-        "rotulos": {"x": "x(t)", "y": "y(t)"},
-        "resultados": "resultados",
-        "M_testados": [10, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300],
-        "M_escolhido": 50,           # justificado por extra_escolha_M.png
-        "janela_rbf": (0, 6),        # trecho mostrado em extra_como_funciona_rbf.png (s)
-        "sinal_rbf": "y",            # sinal mostrado em extra_como_funciona_rbf.png
-    },
-    "cpu": {
-        "arquivo": "dados_cpu.csv",
-        "saidas": {"temperatura": "temperatura"},      # só tempo × temperatura (a ventoinha ficou de fora)
-        "rotulos": {"temperatura": "temperatura (°C)"},
-        "resultados": "resultados_cpu",
-        "M_testados": [25, 50, 100, 150, 200, 250, 300, 400, 500, 600],
-        "M_escolhido": 300,
-        "janela_rbf": (20, 70),
-        "sinal_rbf": "temperatura",
-    },
-}
-
+M_TESTADOS = [25, 50, 100, 150, 200, 250, 300, 400, 500, 600]
+M = 300                   # número de gaussianas da RBF (justificado por extra_escolha_M.png)
+JANELA_RBF = (20, 70)     # trecho mostrado em extra_como_funciona_rbf.png (s)
 FRACAO_VALIDACAO = 0.20   # pontos separados para escolher M
 FRACAO_TREINO_MMQ = 0.70  # MMQ aprende nos primeiros 70% do tempo
 SEMENTE = 42              # deixa o sorteio sempre igual (resultados reprodutíveis)
@@ -57,182 +37,136 @@ def mostrar(texto=""):
     linhas_relatorio.append(texto)
 
 
-def tabela_metricas(titulo, metricas):
-    largura = max(6, max(len(nome) for nome in metricas) + 1)
-    mostrar(f"\n{titulo}")
-    mostrar(f"  {'sinal':<{largura}}{'EMQ':>10}{'RMSE':>10}{'MAE':>10}{'r':>10}")
-    for nome, m in metricas.items():
-        mostrar(f"  {nome:<{largura}}{m['EMQ']:>10.4f}{m['RMSE']:>10.4f}{m['MAE']:>10.4f}{m['r']:>10.4f}")
+def titulo(texto):
+    mostrar("\n" + "=" * 64)
+    mostrar(texto)
+    mostrar("=" * 64)
+
+
+def cabecalho_metricas():
+    mostrar(f"  {'':<32}{'EMQ':>10}{'RMSE':>10}{'MAE':>10}{'r':>10}")
+
+
+def linha_metricas(nome, m):
+    mostrar(f"  {nome:<32}{m['EMQ']:>10.4f}{m['RMSE']:>10.4f}{m['MAE']:>10.4f}{m['r']:>10.4f}")
 
 
 def main():
-    nome_conjunto = sys.argv[1] if len(sys.argv) > 1 else "generico"
-    if nome_conjunto not in CONJUNTOS:
-        sys.exit(f"Conjunto desconhecido: {nome_conjunto}. Use um destes: {', '.join(CONJUNTOS)}")
-    cfg = CONJUNTOS[nome_conjunto]
-    rotulos = cfg["rotulos"]
-    pasta_resultados = PASTA / cfg["resultados"]
-    pasta_resultados.mkdir(exist_ok=True)
+    PASTA_RESULTADOS.mkdir(exist_ok=True)
 
-    t, u, sinais = carregar_dados(PASTA / "dados" / cfg["arquivo"], cfg["saidas"])
+    dados = np.genfromtxt(ARQUIVO_DADOS, delimiter=",", names=True)
+    t, u, temp = dados["t"], dados["u"], dados["temperatura"]
     N = len(t)
-    nomes = list(sinais)
 
-    mostrar("=" * 64)
-    mostrar(f"DADOS ({nome_conjunto})")
-    mostrar("=" * 64)
+    titulo("DADOS: TEMPERATURA DA CPU")
     mostrar(f"  {N} amostras, de t = {t[0]:.0f} s a t = {t[-1]:.0f} s, passo de {t[1] - t[0]:.2f} s")
     mostrar(f"  entrada u troca de valor {np.count_nonzero(np.diff(u))} vezes")
-    graficos.dados(t, u, sinais, rotulos, pasta_resultados / "fig01_dados.png")
+    graficos.dados(t, u, temp, PASTA_RESULTADOS / "fig01_dados.png")
 
     # -------------------------------------------------------------------
     # Escolha do número de gaussianas M
     # -------------------------------------------------------------------
     # Sorteia 20% dos pontos e esconde do ajuste. Se o modelo for bom de
     # verdade, também acerta esses pontos que não viu (validação).
-    mostrar("\n" + "=" * 64)
-    mostrar("RBF: ESCOLHA DO NÚMERO DE CENTROS M")
-    mostrar("=" * 64)
-    rng = np.random.default_rng(SEMENTE)
-    ordem = rng.permutation(N)
+    titulo("RBF: ESCOLHA DO NÚMERO DE CENTROS M")
+    ordem = np.random.default_rng(SEMENTE).permutation(N)
     n_val = int(FRACAO_VALIDACAO * N)
     idx_val, idx_tr = ordem[:n_val], ordem[n_val:]
 
-    erros_m = {nome: {"treino": [], "validacao": []} for nome in sinais}
-    cabecalho = f"  {'M':>5}{'σ (s)':>9}"
-    for nome in nomes:
-        largura = max(15, len(nome) + 12)
-        cabecalho += f"{'EMQ treino ' + nome:>{largura}}{'EMQ valid. ' + nome:>{largura}}"
-    mostrar(cabecalho)
-    for M in cfg["M_testados"]:
-        centros, sigma = modelos.centros_uniformes(t, M)
+    erros_treino, erros_validacao = [], []
+    mostrar(f"  {'M':>5}{'σ (s)':>9}{'EMQ treino':>14}{'EMQ validação':>16}")
+    for m in M_TESTADOS:
+        centros, sigma = modelos.centros_uniformes(t, m)
         Phi = modelos.matriz_rbf(t, centros, sigma)
-        linha = f"  {M:>5}{sigma:>9.3f}"
-        for nome, s in sinais.items():
-            largura = max(15, len(nome) + 12)
-            w = modelos.resolver_equacao_normal(Phi[idx_tr], s[idx_tr])
-            e_tr, e_val = emq(s[idx_tr], Phi[idx_tr] @ w), emq(s[idx_val], Phi[idx_val] @ w)
-            erros_m[nome]["treino"].append(e_tr)
-            erros_m[nome]["validacao"].append(e_val)
-            linha += f"{e_tr:>{largura}.4f}{e_val:>{largura}.4f}"
-        mostrar(linha)
-    graficos.escolha_m(cfg["M_testados"], erros_m, cfg["M_escolhido"], rotulos,
-                       pasta_resultados / "extra_escolha_M.png")
+        w = modelos.resolver_equacao_normal(Phi[idx_tr], temp[idx_tr])
+        erros_treino.append(emq(temp[idx_tr], Phi[idx_tr] @ w))
+        erros_validacao.append(emq(temp[idx_val], Phi[idx_val] @ w))
+        mostrar(f"  {m:>5}{sigma:>9.3f}{erros_treino[-1]:>14.4f}{erros_validacao[-1]:>16.4f}")
+    graficos.escolha_m(M_TESTADOS, erros_treino, erros_validacao, M,
+                       PASTA_RESULTADOS / "extra_escolha_M.png")
 
     # -------------------------------------------------------------------
     # Etapas 01 a 03: ajuste via RBF, EMQ, regressão linear e Pearson
     # -------------------------------------------------------------------
-    M = cfg["M_escolhido"]
     centros, sigma = modelos.centros_uniformes(t, M)
     Phi_rbf = modelos.matriz_rbf(t, centros, sigma)
-    ajuste_rbf, met_rbf = {}, {}
-    for nome, s in sinais.items():
-        w = modelos.resolver_equacao_normal(Phi_rbf, s)
-        ajuste_rbf[nome] = Phi_rbf @ w
-        met_rbf[nome] = resumo(s, ajuste_rbf[nome])
-        if nome == cfg["sinal_rbf"]:
-            graficos.como_funciona_rbf(t, s, Phi_rbf, w, centros, rotulos[nome], cfg["janela_rbf"],
-                                       pasta_resultados / "extra_como_funciona_rbf.png")
+    w_rbf = modelos.resolver_equacao_normal(Phi_rbf, temp)
+    ajuste_rbf = Phi_rbf @ w_rbf
+    met_rbf = resumo(temp, ajuste_rbf)
 
-    mostrar(f"\n  M = {M} gaussianas, σ = {sigma:.3f} s, {M + 1} pesos por sinal")
-    tabela_metricas("ETAPAS 01-03: AJUSTE VIA RBF (todos os pontos)", met_rbf)
-    graficos.ajuste(t, sinais, ajuste_rbf, met_rbf, rotulos, "Etapa 01: ajuste via RBF",
-                    pasta_resultados / "fig02_rbf_ajuste.png", "ajuste via RBF", mostrar_emq=False)
-    graficos.ajuste(t, sinais, ajuste_rbf, met_rbf, rotulos, "Etapa 02: EMQ do ajuste via RBF",
-                    pasta_resultados / "fig03_rbf_emq.png", "ajuste via RBF")
-    graficos.regressao(sinais, ajuste_rbf, met_rbf, rotulos,
-                       "Etapa 03: regressão linear medido × ajustado (RBF)",
-                       pasta_resultados / "fig04_rbf_regressao.png")
+    titulo("ETAPAS 01-03: AJUSTE VIA RBF (todos os pontos)")
+    mostrar(f"  M = {M} gaussianas, σ = {sigma:.3f} s, {M + 1} pesos")
+    cabecalho_metricas()
+    linha_metricas("RBF", met_rbf)
+
+    graficos.ajuste(t, temp, ajuste_rbf, met_rbf, "Etapa 01: ajuste via RBF", "ajuste via RBF",
+                    PASTA_RESULTADOS / "fig02_rbf_ajuste.png", mostrar_emq=False)
+    graficos.ajuste(t, temp, ajuste_rbf, met_rbf, "Etapa 02: EMQ do ajuste via RBF", "ajuste via RBF",
+                    PASTA_RESULTADOS / "fig03_rbf_emq.png")
+    graficos.regressao(temp, ajuste_rbf, met_rbf, "Etapa 03: regressão linear medido × ajustado (RBF)",
+                       PASTA_RESULTADOS / "fig04_rbf_regressao.png")
+    graficos.como_funciona_rbf(t, temp, Phi_rbf, w_rbf, centros, JANELA_RBF,
+                               PASTA_RESULTADOS / "extra_como_funciona_rbf.png")
 
     # -------------------------------------------------------------------
     # Etapa 04: MMQ com o modelo y[n] = f(y[n-1], y[n-2], u[n], u[n-1])
     # -------------------------------------------------------------------
-    mostrar("\n" + "=" * 64)
-    mostrar("ETAPA 04: MMQ COM O MODELO DINÂMICO")
-    mostrar("=" * 64)
+    titulo("ETAPA 04: MMQ COM O MODELO DINÂMICO")
     n_treino = int(FRACAO_TREINO_MMQ * N)
     t_corte = t[n_treino]
     mostrar(f"  treino: t < {t_corte:.1f} s  |  teste: t >= {t_corte:.1f} s")
 
-    pesos_mmq, previsto, simulado = {}, {}, {}
-    met_mmq, met_mmq_teste, met_sim, met_sim_teste = {}, {}, {}, {}
-    for nome, s in sinais.items():
-        Phi, alvo = modelos.matriz_regressores(s, u)
-        linhas_treino = n_treino - 2  # Φ começa em n = 2
-        w = modelos.resolver_equacao_normal(Phi[:linhas_treino], alvo[:linhas_treino])
-        pesos_mmq[nome] = w
-        previsto[nome] = modelos.prever_um_passo(w, s, u)
-        simulado[nome] = modelos.simular(w, s, u)
-        # métricas a partir de n = 2 (os dois primeiros pontos são copiados dos dados)
-        met_mmq[nome] = resumo(s[2:], previsto[nome][2:])
-        met_mmq_teste[nome] = resumo(s[n_treino:], previsto[nome][n_treino:])
-        met_sim[nome] = resumo(s[2:], simulado[nome][2:])
-        met_sim_teste[nome] = resumo(s[n_treino:], simulado[nome][n_treino:])
+    Phi, alvo = modelos.matriz_regressores(temp, u)
+    Phi_tr, alvo_tr = Phi[: n_treino - 2], alvo[: n_treino - 2]   # Φ começa em n = 2
+    w_mmq = modelos.resolver_equacao_normal(Phi_tr, alvo_tr)
+    previsto = modelos.prever_um_passo(w_mmq, temp, u)
+    simulado = modelos.simular(w_mmq, temp, u)
 
     mostrar("\n  Parâmetros livres identificados (equação normal):")
-    largura = max(12, max(len(n) for n in nomes) + 1)
-    mostrar(f"  {'peso':<16}" + "".join(f"{nome:>{largura}}" for nome in nomes))
-    for i, rotulo in enumerate(modelos.NOMES_PESOS_MMQ):
-        mostrar(f"  {rotulo:<16}" + "".join(f"{pesos_mmq[nome][i]:>{largura}.5f}" for nome in nomes))
+    for rotulo, peso in zip(modelos.NOMES_PESOS_MMQ, w_mmq):
+        mostrar(f"  {rotulo:<16}{peso:>12.5f}")
 
-    tabela_metricas("Previsão de um passo (todos os pontos)", met_mmq)
-    tabela_metricas("Previsão de um passo (só o trecho de teste)", met_mmq_teste)
-    tabela_metricas("Simulação livre (todos os pontos)", met_sim)
-    tabela_metricas("Simulação livre (só o trecho de teste)", met_sim_teste)
+    # métricas a partir de n = 2 (os dois primeiros pontos são copiados dos dados)
+    met_mmq = resumo(temp[2:], previsto[2:])
+    met_sim = resumo(temp[2:], simulado[2:])
+    mostrar("")
+    cabecalho_metricas()
+    linha_metricas("Previsão de um passo (todos)", met_mmq)
+    linha_metricas("Previsão de um passo (só teste)", resumo(temp[n_treino:], previsto[n_treino:]))
+    linha_metricas("Simulação livre (todos)", met_sim)
+    linha_metricas("Simulação livre (só teste)", resumo(temp[n_treino:], simulado[n_treino:]))
 
-    graficos.ajuste(t, sinais, previsto, met_mmq, rotulos,
-                    "Etapa 04: ajuste via MMQ (previsão de um passo) e EMQ",
-                    pasta_resultados / "fig05_mmq_ajuste.png", "ajuste via MMQ")
-    graficos.regressao({k: v[2:] for k, v in sinais.items()}, {k: v[2:] for k, v in previsto.items()},
-                       met_mmq, rotulos, "Etapa 04: regressão linear medido × ajustado (MMQ)",
-                       pasta_resultados / "fig06_mmq_regressao.png")
-    graficos.simulacao(t, sinais, simulado, met_sim, rotulos, t_corte,
-                       pasta_resultados / "extra_mmq_simulacao.png")
+    graficos.ajuste(t, temp, previsto, met_mmq, "Etapa 04: ajuste via MMQ (previsão de um passo) e EMQ",
+                    "ajuste via MMQ", PASTA_RESULTADOS / "fig05_mmq_ajuste.png")
+    graficos.regressao(temp[2:], previsto[2:], met_mmq, "Etapa 04: regressão linear medido × ajustado (MMQ)",
+                       PASTA_RESULTADOS / "fig06_mmq_regressao.png")
+    graficos.simulacao(t, temp, simulado, met_sim, t_corte, PASTA_RESULTADOS / "extra_mmq_simulacao.png")
 
     # -------------------------------------------------------------------
     # Conferência: gradiente descendente chega nos mesmos pesos?
     # -------------------------------------------------------------------
-    mostrar("\n" + "=" * 64)
-    mostrar("CONFERÊNCIA: GRADIENTE DESCENDENTE × EQUAÇÃO NORMAL (MMQ)")
-    mostrar("=" * 64)
-    custos, emq_minimo = {}, {}
-    for nome, s in sinais.items():
-        Phi, alvo = modelos.matriz_regressores(s, u)
-        Phi_tr, alvo_tr = Phi[: n_treino - 2], alvo[: n_treino - 2]
-        media, desvio = Phi_tr[:, 1:].mean(axis=0), Phi_tr[:, 1:].std(axis=0)
-        Z = modelos.padronizar(Phi_tr, media, desvio)
-        eta, condicionamento = modelos.taxa_aprendizado_segura(Z)
-        w_z, custos[nome] = modelos.gradiente_descendente(Z, alvo_tr, eta)
-        epocas = len(custos[nome])
-        w_gd = modelos.despadronizar_pesos(w_z, media, desvio)
-        emq_minimo[nome] = emq(alvo_tr, Phi_tr @ pesos_mmq[nome])
-        diferenca = np.max(np.abs(w_gd - pesos_mmq[nome]))
-        mostrar(f"  {nome}: η = {eta:.3f}, condicionamento = {condicionamento:.1f}, "
-                f"{epocas} épocas, maior diferença nos pesos = {diferenca:.1e}")
-    graficos.custo_gd(custos, emq_minimo, rotulos, pasta_resultados / "extra_gd_custo.png")
+    titulo("CONFERÊNCIA: GRADIENTE DESCENDENTE × EQUAÇÃO NORMAL (MMQ)")
+    media, desvio = Phi_tr[:, 1:].mean(axis=0), Phi_tr[:, 1:].std(axis=0)
+    Z = modelos.padronizar(Phi_tr, media, desvio)
+    eta, condicionamento = modelos.taxa_aprendizado_segura(Z)
+    w_z, custos = modelos.gradiente_descendente(Z, alvo_tr, eta)
+    w_gd = modelos.despadronizar_pesos(w_z, media, desvio)
+    diferenca = np.max(np.abs(w_gd - w_mmq))
+    mostrar(f"  η = {eta:.3f}, condicionamento = {condicionamento:.1f}, {len(custos)} épocas, "
+            f"maior diferença nos pesos = {diferenca:.1e}")
+    graficos.custo_gd(custos, emq(alvo_tr, Phi_tr @ w_mmq), PASTA_RESULTADOS / "extra_gd_custo.png")
 
     # -------------------------------------------------------------------
     # Comparação final
     # -------------------------------------------------------------------
-    mostrar("\n" + "=" * 64)
-    mostrar("COMPARAÇÃO FINAL (todos os pontos)")
-    mostrar("=" * 64)
-    cabecalho = f"  {'modelo':<28}"
-    for nome in nomes:
-        largura = max(9, len(nome) + 5)
-        cabecalho += f"{'EMQ ' + nome:>{largura}}{'r ' + nome:>{largura}}"
-    mostrar(cabecalho)
-    for rotulo, met in [("RBF (filtragem no tempo)", met_rbf),
-                        ("MMQ, previsão de um passo", met_mmq),
-                        ("MMQ, simulação livre", met_sim)]:
-        linha = f"  {rotulo:<28}"
-        for nome in nomes:
-            largura = max(9, len(nome) + 5)
-            linha += f"{met[nome]['EMQ']:>{largura}.4f}{met[nome]['r']:>{largura}.4f}"
-        mostrar(linha)
+    titulo("COMPARAÇÃO FINAL (todos os pontos)")
+    cabecalho_metricas()
+    linha_metricas("RBF (filtragem no tempo)", met_rbf)
+    linha_metricas("MMQ, previsão de um passo", met_mmq)
+    linha_metricas("MMQ, simulação livre", met_sim)
 
-    (pasta_resultados / "resultados.txt").write_text("\n".join(linhas_relatorio) + "\n", encoding="utf-8")
-    print(f"\nGráficos e números salvos em {pasta_resultados}/")
+    (PASTA_RESULTADOS / "resultados.txt").write_text("\n".join(linhas_relatorio) + "\n", encoding="utf-8")
+    print(f"\nGráficos e números salvos em {PASTA_RESULTADOS}/")
 
 
 if __name__ == "__main__":
