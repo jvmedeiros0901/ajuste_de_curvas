@@ -107,28 +107,29 @@ def simular(w, s, u):
 # ---------------------------------------------------------------------------
 
 
-def gradiente_descendente(Phi, alvo, eta, max_epocas=200_000, tolerancia=1e-6):
+def gradiente_descendente(Phi, alvo, eta, max_epocas=20_000, tol=1e-6):
     """Encontra w dando pequenos passos "morro abaixo" na função custo.
 
+    Mesma estrutura da função vista em aula (notebook do robô):
     Custo:      J(w) = (1/N) · ||Φw - y||²           (o próprio EMQ)
     Gradiente:  ∇J  = (2/N) · Φᵀ (Φw - y)            (para onde o custo sobe)
     Passo:      w ← w - η · ∇J                       (anda no sentido contrário)
 
     η (eta) é a taxa de aprendizado e cada passo é uma época. O laço para
     quando o gradiente fica praticamente zero, ou seja, chegamos no fundo.
-    Devolve os pesos, o histórico do custo e o número de épocas usadas.
+    Devolve os pesos e o histórico do custo (uma entrada por época).
     """
     N = len(alvo)
     w = np.zeros(Phi.shape[1])
     custos = []
-    for epoca in range(1, max_epocas + 1):
+    for epoca in range(max_epocas):
         erro = Phi @ w - alvo
-        custos.append(np.mean(erro**2))
-        gradiente = (2 / N) * Phi.T @ erro
-        w = w - eta * gradiente
-        if np.linalg.norm(gradiente) < tolerancia:
+        custos.append(np.mean(erro**2))               # J(w)
+        gradiente = (2 / N) * Phi.T @ erro            # ∇J
+        if np.linalg.norm(gradiente) < tol:           # chegou ao mínimo
             break
-    return w, np.array(custos), epoca
+        w = w - eta * gradiente                       # passo
+    return w, custos
 
 
 def taxa_aprendizado_segura(Phi):

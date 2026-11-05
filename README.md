@@ -2,7 +2,7 @@
 
 Projeto da Unidade II de **ECT3401 Computação Numérica** (UFRN), prof. Joilson B. A. Rego.
 
-A partir de medições com ruído de um sistema (uma entrada `u` e duas saídas), o projeto ajusta
+A partir de medições com ruído de um sistema (uma entrada `u` e a saída medida), o projeto ajusta
 dois modelos matemáticos e compara os resultados:
 
 1. **RBF**: soma de funções gaussianas ao longo do tempo, que filtra o ruído do sinal.
@@ -17,9 +17,9 @@ O mesmo código roda em dois conjuntos de dados:
 | Conjunto | Entrada `u` | Saídas | Comando |
 |---|---|---|---|
 | Genérico (do professor) | onda quadrada ±1 | `x` e `y` | `python main.py` |
-| Temperatura da CPU (Eng. de Computação) | carga de 100% ligada/desligada a cada 30 s | temperatura (°C) e ventoinha (rpm) | `python main.py cpu` |
+| Temperatura da CPU (Eng. de Computação) | carga de 100% ligada/desligada a cada 30 s | temperatura (°C) | `python main.py cpu` |
 
-![Ajuste via RBF](resultados/fig04_rbf_ajuste.png)
+![Ajuste via RBF](resultados/fig02_rbf_ajuste.png)
 
 ## Como rodar
 
@@ -49,11 +49,11 @@ Dados genéricos:
 
 Temperatura da CPU:
 
-| Modelo | EMQ temperatura (°C²) | r temperatura | EMQ ventoinha (rpm²) | r ventoinha |
-|---|---|---|---|---|
-| RBF (M = 300 gaussianas) | 3,63 | 0,973 | 168 | 0,999 |
-| MMQ, previsão de um passo | 5,38 | 0,960 | 416 | 0,998 |
-| MMQ, simulação livre | 29,2 | 0,754 | 31 946 | 0,880 |
+| Modelo | EMQ temperatura (°C²) | r temperatura |
+|---|---|---|
+| RBF (M = 300 gaussianas) | 3,63 | 0,973 |
+| MMQ, previsão de um passo | 5,38 | 0,960 |
+| MMQ, simulação livre | 29,2 | 0,754 |
 
 ## Arquivos
 

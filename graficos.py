@@ -75,7 +75,8 @@ def como_funciona_rbf(t, s, Phi, w, centros, rotulo, janela, caminho):
 
 def escolha_m(lista_m, erros, m_escolhido, rotulos, caminho):
     """Erro de treino e de validação para cada número de centros M."""
-    fig, axs = plt.subplots(1, len(erros), figsize=(11, 4))
+    fig, axs = plt.subplots(1, len(erros), figsize=(11, 4), squeeze=False)
+    axs = axs.ravel()
     for ax, nome in zip(axs, erros):
         ax.plot(lista_m, erros[nome]["treino"], "o-", label="treino (pontos usados no ajuste)")
         ax.plot(lista_m, erros[nome]["validacao"], "s-", label="validação (pontos separados)")
@@ -88,15 +89,17 @@ def escolha_m(lista_m, erros, m_escolhido, rotulos, caminho):
     _salvar(fig, caminho)
 
 
-def ajuste(t, sinais, ajustes, metricas, rotulos, titulo, caminho, rotulo_ajuste):
-    """Etapas 01/02/04: dados com ruído, curva do modelo e o EMQ."""
-    fig, axs = plt.subplots(len(sinais), 1, figsize=(11, 6.5), sharex=True)
+def ajuste(t, sinais, ajustes, metricas, rotulos, titulo, caminho, rotulo_ajuste, mostrar_emq=True):
+    """Etapas 01/02/04: dados com ruído, curva do modelo e (opcional) o EMQ."""
+    fig, axs = plt.subplots(len(sinais), 1, figsize=(11, 6.5), sharex=True, squeeze=False)
+    axs = axs.ravel()
     for ax, nome in zip(axs, sinais):
         ax.scatter(t, sinais[nome], s=6, alpha=0.35, color=COR_DADOS, label="dados com ruído")
         ax.plot(t, ajustes[nome], color=COR_AJUSTE, lw=1.4, ls="--", label=rotulo_ajuste)
         ax.set_ylabel(rotulos[nome])
         ax.legend(loc="upper right", fontsize=8)
-        _caixa(ax, f"EMQ = {metricas[nome]['EMQ']:.4f}")
+        if mostrar_emq:
+            _caixa(ax, f"EMQ = {metricas[nome]['EMQ']:.4f}")
     axs[0].set_title(titulo)
     axs[-1].set_xlabel("tempo (s)")
     _salvar(fig, caminho)
@@ -104,7 +107,8 @@ def ajuste(t, sinais, ajustes, metricas, rotulos, titulo, caminho, rotulo_ajuste
 
 def regressao(sinais, ajustes, metricas, rotulos, titulo, caminho):
     """Etapa 03: medido × ajustado, reta de regressão, faixa ±√EMQ e r."""
-    fig, axs = plt.subplots(len(sinais), 1, figsize=(11, 7))
+    fig, axs = plt.subplots(len(sinais), 1, figsize=(11, 7), squeeze=False)
+    axs = axs.ravel()
     for ax, nome, cor in zip(axs, sinais, ["tab:red", "tab:orange"]):
         a, b = ajustes[nome], sinais[nome]
         inclinacao, intercepto = regressao_linear(a, b)
@@ -125,7 +129,8 @@ def regressao(sinais, ajustes, metricas, rotulos, titulo, caminho):
 
 def simulacao(t, sinais, simulados, metricas, rotulos, t_corte, caminho):
     """Simulação livre do modelo MMQ, com a divisão treino/teste marcada."""
-    fig, axs = plt.subplots(len(sinais), 1, figsize=(11, 6.5), sharex=True)
+    fig, axs = plt.subplots(len(sinais), 1, figsize=(11, 6.5), sharex=True, squeeze=False)
+    axs = axs.ravel()
     for ax, nome in zip(axs, sinais):
         ax.scatter(t, sinais[nome], s=6, alpha=0.35, color=COR_DADOS, label="dados com ruído")
         ax.plot(t, simulados[nome], color="tab:green", lw=1.4, label="simulação livre (MMQ)")
@@ -140,7 +145,8 @@ def simulacao(t, sinais, simulados, metricas, rotulos, t_corte, caminho):
 
 def custo_gd(custos, emq_minimo, rotulos, caminho):
     """Curva do custo ao longo das épocas do gradiente descendente."""
-    fig, axs = plt.subplots(1, len(custos), figsize=(11, 4))
+    fig, axs = plt.subplots(1, len(custos), figsize=(11, 4), squeeze=False)
+    axs = axs.ravel()
     for ax, nome in zip(axs, custos):
         ax.plot(np.arange(1, len(custos[nome]) + 1), custos[nome], lw=1.5)
         ax.axhline(emq_minimo[nome], color="k", ls="--", lw=1, label="mínimo (equação normal)")

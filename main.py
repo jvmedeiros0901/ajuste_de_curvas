@@ -28,14 +28,14 @@ CONJUNTOS = {
         "rotulos": {"x": "x(t)", "y": "y(t)"},
         "resultados": "resultados",
         "M_testados": [10, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300],
-        "M_escolhido": 50,           # justificado pela figura 3
-        "janela_rbf": (0, 6),        # trecho mostrado na figura 2 (s)
-        "sinal_rbf": "y",            # sinal mostrado na figura 2
+        "M_escolhido": 50,           # justificado por extra_escolha_M.png
+        "janela_rbf": (0, 6),        # trecho mostrado em extra_como_funciona_rbf.png (s)
+        "sinal_rbf": "y",            # sinal mostrado em extra_como_funciona_rbf.png
     },
     "cpu": {
         "arquivo": "dados_cpu.csv",
-        "saidas": {"temperatura": "temperatura", "ventoinha": "ventoinha"},
-        "rotulos": {"temperatura": "temperatura (°C)", "ventoinha": "ventoinha (rpm)"},
+        "saidas": {"temperatura": "temperatura"},      # só tempo × temperatura (a ventoinha ficou de fora)
+        "rotulos": {"temperatura": "temperatura (°C)"},
         "resultados": "resultados_cpu",
         "M_testados": [25, 50, 100, 150, 200, 250, 300, 400, 500, 600],
         "M_escolhido": 300,
@@ -117,7 +117,7 @@ def main():
             linha += f"{e_tr:>{largura}.4f}{e_val:>{largura}.4f}"
         mostrar(linha)
     graficos.escolha_m(cfg["M_testados"], erros_m, cfg["M_escolhido"], rotulos,
-                       pasta_resultados / "fig03_escolha_M.png")
+                       pasta_resultados / "extra_escolha_M.png")
 
     # -------------------------------------------------------------------
     # Etapas 01 a 03: ajuste via RBF, EMQ, regressão linear e Pearson
@@ -132,15 +132,17 @@ def main():
         met_rbf[nome] = resumo(s, ajuste_rbf[nome])
         if nome == cfg["sinal_rbf"]:
             graficos.como_funciona_rbf(t, s, Phi_rbf, w, centros, rotulos[nome], cfg["janela_rbf"],
-                                       pasta_resultados / "fig02_como_funciona_rbf.png")
+                                       pasta_resultados / "extra_como_funciona_rbf.png")
 
     mostrar(f"\n  M = {M} gaussianas, σ = {sigma:.3f} s, {M + 1} pesos por sinal")
     tabela_metricas("ETAPAS 01-03: AJUSTE VIA RBF (todos os pontos)", met_rbf)
-    graficos.ajuste(t, sinais, ajuste_rbf, met_rbf, rotulos, "Etapas 01 e 02: ajuste via RBF e EMQ",
-                    pasta_resultados / "fig04_rbf_ajuste.png", "ajuste via RBF")
+    graficos.ajuste(t, sinais, ajuste_rbf, met_rbf, rotulos, "Etapa 01: ajuste via RBF",
+                    pasta_resultados / "fig02_rbf_ajuste.png", "ajuste via RBF", mostrar_emq=False)
+    graficos.ajuste(t, sinais, ajuste_rbf, met_rbf, rotulos, "Etapa 02: EMQ do ajuste via RBF",
+                    pasta_resultados / "fig03_rbf_emq.png", "ajuste via RBF")
     graficos.regressao(sinais, ajuste_rbf, met_rbf, rotulos,
                        "Etapa 03: regressão linear medido × ajustado (RBF)",
-                       pasta_resultados / "fig05_rbf_regressao.png")
+                       pasta_resultados / "fig04_rbf_regressao.png")
 
     # -------------------------------------------------------------------
     # Etapa 04: MMQ com o modelo y[n] = f(y[n-1], y[n-2], u[n], u[n-1])
@@ -180,12 +182,12 @@ def main():
 
     graficos.ajuste(t, sinais, previsto, met_mmq, rotulos,
                     "Etapa 04: ajuste via MMQ (previsão de um passo) e EMQ",
-                    pasta_resultados / "fig06_mmq_ajuste.png", "ajuste via MMQ")
+                    pasta_resultados / "fig05_mmq_ajuste.png", "ajuste via MMQ")
     graficos.regressao({k: v[2:] for k, v in sinais.items()}, {k: v[2:] for k, v in previsto.items()},
                        met_mmq, rotulos, "Etapa 04: regressão linear medido × ajustado (MMQ)",
-                       pasta_resultados / "fig07_mmq_regressao.png")
+                       pasta_resultados / "fig06_mmq_regressao.png")
     graficos.simulacao(t, sinais, simulado, met_sim, rotulos, t_corte,
-                       pasta_resultados / "fig08_mmq_simulacao.png")
+                       pasta_resultados / "extra_mmq_simulacao.png")
 
     # -------------------------------------------------------------------
     # Conferência: gradiente descendente chega nos mesmos pesos?
@@ -200,13 +202,14 @@ def main():
         media, desvio = Phi_tr[:, 1:].mean(axis=0), Phi_tr[:, 1:].std(axis=0)
         Z = modelos.padronizar(Phi_tr, media, desvio)
         eta, condicionamento = modelos.taxa_aprendizado_segura(Z)
-        w_z, custos[nome], epocas = modelos.gradiente_descendente(Z, alvo_tr, eta)
+        w_z, custos[nome] = modelos.gradiente_descendente(Z, alvo_tr, eta)
+        epocas = len(custos[nome])
         w_gd = modelos.despadronizar_pesos(w_z, media, desvio)
         emq_minimo[nome] = emq(alvo_tr, Phi_tr @ pesos_mmq[nome])
         diferenca = np.max(np.abs(w_gd - pesos_mmq[nome]))
         mostrar(f"  {nome}: η = {eta:.3f}, condicionamento = {condicionamento:.1f}, "
                 f"{epocas} épocas, maior diferença nos pesos = {diferenca:.1e}")
-    graficos.custo_gd(custos, emq_minimo, rotulos, pasta_resultados / "fig09_gd_custo.png")
+    graficos.custo_gd(custos, emq_minimo, rotulos, pasta_resultados / "extra_gd_custo.png")
 
     # -------------------------------------------------------------------
     # Comparação final
