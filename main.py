@@ -22,7 +22,7 @@ ARQUIVO_DADOS = PASTA / "dados" / "dados_cpu.csv"
 PASTA_RESULTADOS = PASTA / "resultados"
 
 M_TESTADOS = [25, 50, 100, 150, 200, 250, 300, 400, 500, 600]
-M = 300                   # número de gaussianas da RBF (justificado por extra_escolha_M.png)
+M = 400                   # número de gaussianas da RBF (justificado por extra_escolha_M.png)
 JANELA_RBF = (20, 70)     # trecho mostrado em extra_como_funciona_rbf.png (s)
 FRACAO_VALIDACAO = 0.20   # pontos separados para escolher M
 FRACAO_TREINO_MMQ = 0.70  # MMQ aprende nos primeiros 70% do tempo

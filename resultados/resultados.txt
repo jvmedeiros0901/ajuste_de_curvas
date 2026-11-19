@@ -23,9 +23,9 @@ RBF: ESCOLHA DO NÚMERO DE CENTROS M
 ================================================================
 ETAPAS 01-03: AJUSTE VIA RBF (todos os pontos)
 ================================================================
-  M = 300 gaussianas, σ = 2.508 s, 301 pesos
+  M = 400 gaussianas, σ = 1.880 s, 401 pesos
                                          EMQ      RMSE       MAE         r
-  RBF                                 3.6275    1.9046    1.0107    0.9729
+  RBF                                 2.5391    1.5935    0.7715    0.9811
 
 ================================================================
 ETAPA 04: MMQ COM O MODELO DINÂMICO
@@ -54,6 +54,6 @@ CONFERÊNCIA: GRADIENTE DESCENDENTE × EQUAÇÃO NORMAL (MMQ)
 COMPARAÇÃO FINAL (todos os pontos)
 ================================================================
                                          EMQ      RMSE       MAE         r
-  RBF (filtragem no tempo)            3.6275    1.9046    1.0107    0.9729
+  RBF (filtragem no tempo)            2.5391    1.5935    0.7715    0.9811
   MMQ, previsão de um passo           5.3811    2.3197    0.9112    0.9595
   MMQ, simulação livre               29.2488    5.4082    3.7739    0.7543

@@ -34,7 +34,7 @@ python coletar_cpu.py
 
 | Modelo | EMQ (°C²) | r |
 |---|---|---|
-| RBF (M = 300 gaussianas) | 3,63 | 0,973 |
+| RBF (M = 400 gaussianas) | 2,54 | 0,981 |
 | MMQ, previsão de um passo | 5,38 | 0,960 |
 | MMQ, simulação livre | 29,2 | 0,754 |
 
